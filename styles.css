@@ -1,0 +1,390 @@
+.mapdraw-root {
+	margin: 0.5em 0;
+}
+
+/* Wrap holds the Leaflet container and our overlay layer as siblings. */
+.mapdraw-wrap {
+	position: relative;
+	width: 100%;
+}
+
+.mapdraw-map {
+	position: relative;
+	width: 100%;
+	border-radius: 6px;
+	overflow: hidden;
+	background: var(--background-secondary);
+	outline: none;
+}
+
+/* Overlay layer sits on top of the map; pointer-events pass through except
+   on actual children (buttons, dropdowns, etc.). */
+.mapdraw-overlays {
+	position: absolute;
+	inset: 0;
+	z-index: 500;
+	pointer-events: none;
+}
+
+.mapdraw-overlays > * {
+	pointer-events: auto;
+}
+
+.mapdraw-error,
+.mapdraw-missing {
+	padding: 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-secondary);
+	color: var(--text-normal);
+}
+
+.mapdraw-missing button {
+	margin-top: 8px;
+}
+
+/* Top-left: our own zoom +/- (Leaflet's default is disabled). */
+.mapdraw-control-tl {
+	position: absolute;
+	top: 8px;
+	left: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 4px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* Floating toolbar (drawing tools), stacked below the zoom cluster. */
+.mapdraw-toolbar {
+	position: absolute;
+	top: 92px;
+	left: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 4px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.mapdraw-tool-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--text-normal);
+	cursor: pointer;
+	border-radius: 4px;
+}
+
+.mapdraw-tool-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+.mapdraw-tool-btn.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+/* Generic round buttons used in corner control groups */
+.mapdraw-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	border-radius: 4px;
+	margin-left: 4px;
+}
+
+.mapdraw-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Lock button when the map is locked — red tint so it's obvious at a glance. */
+.mapdraw-btn.mapdraw-lock-on {
+	color: var(--text-on-accent, #ffffff);
+	background: var(--background-modifier-error);
+	border-color: var(--background-modifier-error);
+}
+
+.mapdraw-btn.mapdraw-lock-on:hover {
+	background: var(--background-modifier-error-hover, var(--background-modifier-error));
+	filter: brightness(1.1);
+}
+
+/* Top-right control cluster: provider switcher */
+.mapdraw-control-tr {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	z-index: 500;
+}
+
+.mapdraw-provider-select {
+	background: var(--background-primary);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 4px 6px;
+	font-size: 12px;
+}
+
+/* Bottom-right control cluster: recenter, save view */
+.mapdraw-control-br {
+	position: absolute;
+	bottom: 8px;
+	right: 8px;
+	z-index: 500;
+	display: flex;
+	flex-direction: row;
+}
+
+/* Bottom-left coordinate display */
+.mapdraw-control-bl {
+	position: absolute;
+	bottom: 8px;
+	left: 8px;
+	z-index: 500;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 2px 8px;
+	font-size: 11px;
+	font-family: var(--font-monospace);
+	cursor: pointer;
+	color: var(--text-muted);
+}
+
+.mapdraw-coords:empty::before {
+	content: "—";
+}
+
+/* In-map banner for missing API key */
+.mapdraw-banner {
+	position: absolute;
+	top: 8px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 500;
+	background: var(--background-modifier-error);
+	color: var(--text-on-accent, white);
+	padding: 4px 10px;
+	border-radius: 4px;
+	font-size: 12px;
+}
+
+.mapdraw-banner a {
+	color: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+/* Style panel for selected shape */
+.mapdraw-style-panel {
+	position: absolute;
+	top: 8px;
+	right: 200px;
+	z-index: 500;
+	width: 240px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+	font-size: 12px;
+	max-height: calc(100% - 16px);
+	overflow-y: auto;
+}
+
+.mapdraw-style-header {
+	padding: 6px 10px;
+	font-weight: 600;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.mapdraw-style-body {
+	padding: 6px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.mapdraw-style-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.mapdraw-style-label {
+	flex: 0 0 70px;
+	color: var(--text-muted);
+}
+
+.mapdraw-style-control {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.mapdraw-style-control input[type="text"],
+.mapdraw-style-control input[type="number"] {
+	flex: 1;
+	min-width: 0;
+}
+
+.mapdraw-style-control input[type="range"] {
+	flex: 1;
+}
+
+.mapdraw-style-footer {
+	padding: 6px 10px;
+	border-top: 1px solid var(--background-modifier-border);
+	display: flex;
+	justify-content: flex-end;
+}
+
+/* Vertex / handle markers */
+.mapdraw-vertex-handle {
+	background: var(--interactive-accent);
+	border: 2px solid var(--text-on-accent);
+	border-radius: 50%;
+	width: 10px;
+	height: 10px;
+	cursor: grab;
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+/* Text overlay (label) */
+.mapdraw-text-divicon {
+	background: transparent;
+	border: none;
+}
+
+.mapdraw-text-label {
+	white-space: nowrap;
+	color: var(--text-normal);
+	font-weight: 500;
+	text-shadow: 0 0 2px var(--background-primary), 0 0 2px var(--background-primary);
+	pointer-events: auto;
+}
+
+.mapdraw-link-display {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-muted);
+}
+
+/* Tile loading indicator */
+.mapdraw-loading {
+	position: absolute;
+	top: 8px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 600;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+	font-size: 11px;
+	color: var(--text-muted);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+	pointer-events: none;
+}
+
+.mapdraw-spinner {
+	width: 12px;
+	height: 12px;
+	border: 2px solid var(--background-modifier-border);
+	border-top-color: var(--interactive-accent);
+	border-radius: 50%;
+	animation: mapdraw-spin 0.8s linear infinite;
+}
+
+@keyframes mapdraw-spin {
+	to { transform: rotate(360deg); }
+}
+
+/* When the wrap is locked, hide our overlay zoom cluster (toolbar visibility
+   is handled in JS via DrawTools.setVisible). */
+.mapdraw-locked .mapdraw-control-tl {
+	display: none;
+}
+
+.mapdraw-locked .leaflet-container {
+	cursor: default;
+}
+
+/* Hide Leaflet-internal chrome while capturing a snapshot so the resulting
+   PNG shows only the map and annotations. Our overlays are siblings of the
+   captured element, so they're naturally excluded. */
+.mapdraw-capturing .leaflet-control-attribution,
+.mapdraw-capturing .leaflet-control-zoom,
+.mapdraw-capturing .mapdraw-vertex-handle {
+	display: none !important;
+}
+
+/* Snapshot view (replaces the live map when snapshotPath is set) */
+.mapdraw-snapshot {
+	position: relative;
+	width: 100%;
+	border-radius: 6px;
+	overflow: hidden;
+	background: var(--background-secondary);
+}
+
+.mapdraw-snapshot-img {
+	display: block;
+	width: 100%;
+	height: auto;
+	max-height: 720px;
+	object-fit: contain;
+}
+
+.mapdraw-snapshot-bar {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	font-size: 11px;
+	color: var(--text-muted);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.mapdraw-snapshot-label {
+	margin-right: 4px;
+}
+
+.mapdraw-custom-provider {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 8px 12px;
+	margin: 6px 0;
+}

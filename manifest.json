@@ -1,0 +1,10 @@
+{
+  "id": "mapdraw",
+  "name": "MapDraw",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Embed annotated, drawable Leaflet maps in notes via fenced code blocks. Annotations stored alongside notes as sidecar JSON.",
+  "author": "MapDraw contributors",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}

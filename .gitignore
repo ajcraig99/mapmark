@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build artefacts
+# main.js is a release artefact (committed only on tagged releases via the
+# GitHub Release attachments, never to the default branch).
+main.js
+main.js.map
+*.tsbuildinfo
+
+# Plugin runtime data (per-vault, do not version)
+data.json
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# AI assistant artefacts — never publish to GitHub
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.cursor/
+.cursorrules
+.github/copilot-instructions.md
+.claude/
+.aider*
+.continue/
+.windsurfrules
+
+# Local-only checklists / scratch
+TODO_SUBMISSION.md
+TODO.local.md
+.scratch/
