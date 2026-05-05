@@ -109,7 +109,7 @@ export interface TileProvider {
 	attribution?: string;
 	maxZoom?: number;
 	subdomains?: string;
-	apiKeyField?: keyof MapDrawSettings;
+	apiKeyField?: keyof MapMarkSettings;
 	apiKey?: string;
 	type?: ProviderType;
 	layers?: string;
@@ -130,7 +130,7 @@ export interface CustomProvider {
 
 export type SnapshotLocation = "next-to-map" | "custom" | "attachment";
 
-export interface MapDrawSettings {
+export interface MapMarkSettings {
 	defaultProvider: string;
 	defaultZoom: number;
 	defaultHeight: number;
@@ -140,7 +140,7 @@ export interface MapDrawSettings {
 	snapshotFolder: string;
 }
 
-export const DEFAULT_SETTINGS: MapDrawSettings = {
+export const DEFAULT_SETTINGS: MapMarkSettings = {
 	defaultProvider: "opentopomap",
 	defaultZoom: 13,
 	defaultHeight: 480,

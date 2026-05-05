@@ -1,4 +1,4 @@
-import type { CustomProvider, MapDrawSettings, TileProvider } from "./types";
+import type { CustomProvider, MapMarkSettings, TileProvider } from "./types";
 
 export const BUILTIN_PROVIDERS: TileProvider[] = [
 	{
@@ -69,7 +69,7 @@ export interface ResolvedProvider {
 	format?: string;
 }
 
-export function resolveProvider(id: string, settings: MapDrawSettings): ResolvedProvider | null {
+export function resolveProvider(id: string, settings: MapMarkSettings): ResolvedProvider | null {
 	const builtin = BUILTIN_PROVIDERS.find((p) => p.id === id);
 	if (builtin) {
 		const apiKey = builtin.apiKeyField ? (settings[builtin.apiKeyField] as string) : "";
@@ -105,7 +105,7 @@ export function resolveProvider(id: string, settings: MapDrawSettings): Resolved
 	return null;
 }
 
-export function listProviders(settings: MapDrawSettings): Array<{ id: string; name: string }> {
+export function listProviders(settings: MapMarkSettings): Array<{ id: string; name: string }> {
 	const out: Array<{ id: string; name: string }> = BUILTIN_PROVIDERS.map((p) => ({ id: p.id, name: p.name }));
 	for (const c of settings.customProviders) out.push({ id: c.id, name: c.name });
 	return out;

@@ -1,15 +1,15 @@
 import * as L from "leaflet";
-import { App, Notice, setIcon } from "obsidian";
+import { App, Notice, TFile, normalizePath, setIcon } from "obsidian";
 import type {
 	CodeBlockOptions,
 	LatLng,
 	MapData,
-	MapDrawSettings,
+	MapMarkSettings,
 	Shape,
 } from "../types";
 import { toPng } from "html-to-image";
 import { listProviders, resolveProvider, type ResolvedProvider } from "../tileProviders";
-import { writeMapData, debounceSave } from "../data/MapData";
+import { writeMapData, debounceSave, type DebouncedSave } from "../data/MapData";
 import { DrawTools } from "./DrawTools";
 import { StylePanel } from "./StylePanel";
 import { createTextMarker, updateTextMarker } from "./TextOverlay";
@@ -19,7 +19,7 @@ export interface MapViewOptions {
 	app: App;
 	container: HTMLElement;
 	data: MapData;
-	settings: MapDrawSettings;
+	settings: MapMarkSettings;
 	options: CodeBlockOptions;
 	sourcePath: string;
 	readonly: boolean;
@@ -31,7 +31,7 @@ export class MapView {
 	private app: App;
 	private container: HTMLElement;
 	private data: MapData;
-	private settings: MapDrawSettings;
+	private settings: MapMarkSettings;
 	private options: CodeBlockOptions;
 	private sourcePath: string;
 	private readonly: boolean;
@@ -47,6 +47,7 @@ export class MapView {
 
 	private layers = new Map<string, L.Layer>();
 	private editHandles: L.Layer[] = [];
+	private selectedDragCleanup: (() => void) | null = null;
 	private selectedId: string | null = null;
 
 	private toolbar: DrawTools | null = null;
@@ -59,7 +60,7 @@ export class MapView {
 	private erroredProviders = new Set<string>();
 	private resizeObserver: ResizeObserver | null = null;
 
-	private save: () => void;
+	private save: DebouncedSave;
 	private onPersisted?: (serialized: string) => void;
 	private onSnapshotChange?: () => void;
 
@@ -83,16 +84,17 @@ export class MapView {
 
 	render() {
 		this.container.empty();
-		this.container.addClass("mapdraw-root");
+		this.container.addClass("mapmark-root");
 
 		// Wrap structure: our overlays are siblings of the Leaflet container, not
 		// children. This insulates them from any other plugin's CSS rules that
 		// target .leaflet-container descendants (e.g. obsidian-leaflet-plugin
 		// hides .leaflet-control-zoom — that rule would otherwise hit us).
-		this.wrapEl = this.container.createDiv({ cls: "mapdraw-wrap" });
-		this.mapEl = this.wrapEl.createDiv({ cls: "mapdraw-map" });
+		this.wrapEl = this.container.createDiv({ cls: "mapmark-wrap" });
+		this.mapEl = this.wrapEl.createDiv({ cls: "mapmark-map" });
+		// Inline: height is per-instance (settings default or code-block override).
 		this.mapEl.style.height = `${this.options.height ?? this.settings.defaultHeight}px`;
-		this.overlayEl = this.wrapEl.createDiv({ cls: "mapdraw-overlays" });
+		this.overlayEl = this.wrapEl.createDiv({ cls: "mapmark-overlays" });
 
 		const initialProvider = this.options.provider || this.data.view?.provider || this.settings.defaultProvider;
 		const initialOverlay = this.options.overlay || this.data.view?.overlay || "";
@@ -158,8 +160,13 @@ export class MapView {
 		// 0-width (mode switches, collapsed sections, etc.), in which case
 		// Leaflet only loads the single tile around the centre and never
 		// recovers. Reflowing on resize fixes that.
+		//
+		// `pan: true` (the default) is critical: when the container grows from
+		// its transient narrow size to its real width, we want Leaflet to keep
+		// the saved-view centre at the visual centre. With `pan: false` it
+		// stays anchored to the old narrow pixel and the map looks shifted.
 		this.resizeObserver = new ResizeObserver(() => {
-			this.map?.invalidateSize({ animate: false, pan: false });
+			this.map?.invalidateSize({ animate: false });
 		});
 		this.resizeObserver.observe(this.wrapEl);
 	}
@@ -172,20 +179,19 @@ export class MapView {
 		m.boxZoom?.disable();
 		m.keyboard?.disable();
 		m.touchZoom?.disable();
-		this.mapEl.style.cursor = "default";
 	}
 
 	private async takeSnapshot() {
 		if (this.erroredProviders.size > 0) {
 			new Notice(
-				`MapDraw: snapshot aborted — tile errors detected from "${[...this.erroredProviders].join(", ")}". Switch provider and try again.`
+				`MapMark: snapshot aborted — tile errors detected from "${[...this.erroredProviders].join(", ")}". Switch provider and try again.`
 			);
 			return;
 		}
 		this.clearSelection();
-		this.mapEl.classList.add("mapdraw-capturing");
+		this.mapEl.classList.add("mapmark-capturing");
 		try {
-			new Notice("MapDraw: capturing snapshot…");
+			new Notice("MapMark: capturing snapshot…");
 			// Wait one frame so the capture-mode CSS hides controls before we render.
 			await new Promise((r) => requestAnimationFrame(r));
 			const dataUrl = await toPng(this.mapEl, {
@@ -195,18 +201,24 @@ export class MapView {
 			});
 			const bytes = dataUrlToBytes(dataUrl);
 			const path = await snapshotPathFor(this.app, this.options.source, this.settings);
-			await this.app.vault.adapter.writeBinary(path, bytes.buffer.slice(0) as ArrayBuffer);
+			const buf = bytes.buffer.slice(0) as ArrayBuffer;
+			const existing = this.app.vault.getFileByPath(path);
+			if (existing instanceof TFile) {
+				await this.app.vault.modifyBinary(existing, buf);
+			} else {
+				await this.app.vault.createBinary(path, buf);
+			}
 			this.data.snapshotPath = path;
 			const fingerprint = JSON.stringify(this.data);
 			await writeMapData(this.app, this.options.source, this.data);
 			this.onPersisted?.(fingerprint);
-			new Notice("MapDraw: snapshot saved");
+			new Notice("MapMark: snapshot saved");
 			this.onSnapshotChange?.();
 		} catch (err) {
-			console.error("MapDraw snapshot failed:", err);
-			new Notice("MapDraw: snapshot failed (see console). Tile CORS may be blocking capture.");
+			console.error("MapMark snapshot failed:", err);
+			new Notice("MapMark: snapshot failed (see console). Tile CORS may be blocking capture.");
 		} finally {
-			this.mapEl.classList.remove("mapdraw-capturing");
+			this.mapEl.classList.remove("mapmark-capturing");
 		}
 	}
 
@@ -224,14 +236,18 @@ export class MapView {
 		setEnabled(m.keyboard, !locked);
 		setEnabled(m.touchZoom as unknown as { enable: () => void; disable: () => void }, !locked);
 		// Hide / show our overlay zoom + toolbar by toggling the wrap class.
-		this.wrapEl.classList.toggle("mapdraw-locked", locked);
+		this.wrapEl.classList.toggle("mapmark-locked", locked);
 		// In edit mode, also hide the toolbar and clear any selection.
 		this.toolbar?.setVisible(!locked);
 		if (locked) this.clearSelection();
-		this.lockBtn?.toggleClass("mapdraw-lock-on", locked);
+		this.lockBtn?.toggleClass("mapmark-lock-on", locked);
 	}
 
 	destroy() {
+		// Drop any pending debounced write. Otherwise an in-flight save can
+		// land after a refresh triggered by an external edit and overwrite
+		// the newer file content with our stale in-memory state.
+		this.save.cancel();
 		this.resizeObserver?.disconnect();
 		this.resizeObserver = null;
 		try { this.map.remove(); } catch { /* ignore */ }
@@ -254,7 +270,7 @@ export class MapView {
 		let resolved = resolveProvider(id, this.settings);
 		let effectiveId = id;
 		if (!resolved) {
-			new Notice(`MapDraw: provider "${id}" no longer exists — falling back to default`);
+			new Notice(`MapMark: provider "${id}" no longer exists — falling back to default`);
 			effectiveId = this.settings.defaultProvider;
 			resolved = resolveProvider(effectiveId, this.settings);
 			if (!resolved) return;
@@ -296,22 +312,17 @@ export class MapView {
 		};
 		layer.on("load", settle);
 		// `load` does not always fire when every tile errors; safety-net via `tileerror`.
-		layer.on("tileerror", (e: L.TileErrorEvent) => {
-			const key = providerName;
-			if (!this.erroredProviders.has(key)) {
-				this.erroredProviders.add(key);
-				const url = (e as unknown as { tile?: HTMLImageElement }).tile?.src;
-				console.warn(`MapDraw: tile error from "${providerName}". URL:`, url);
-			}
+		layer.on("tileerror", () => {
+			this.erroredProviders.add(providerName);
 		});
 	}
 
 	private updateLoadingIndicator() {
 		if (this.loadingCount > 0) {
 			if (!this.loadingEl) {
-				this.loadingEl = this.overlayEl.createDiv({ cls: "mapdraw-loading" });
-				this.loadingEl.createDiv({ cls: "mapdraw-spinner" });
-				this.loadingEl.createSpan({ cls: "mapdraw-loading-label", text: "Loading tiles…" });
+				this.loadingEl = this.overlayEl.createDiv({ cls: "mapmark-loading" });
+				this.loadingEl.createDiv({ cls: "mapmark-spinner" });
+				this.loadingEl.createSpan({ cls: "mapmark-loading-label", text: "Loading tiles…" });
 			}
 		} else if (this.loadingEl) {
 			this.loadingEl.remove();
@@ -328,28 +339,28 @@ export class MapView {
 			return;
 		}
 		if (!this.banner) {
-			this.banner = this.overlayEl.createDiv({ cls: "mapdraw-banner" });
+			this.banner = this.overlayEl.createDiv({ cls: "mapmark-banner" });
 		}
 		this.banner.empty();
 		this.banner.createSpan({ text: msg + " " });
 		const link = this.banner.createEl("a", { text: "Open settings" });
 		link.onclick = () => {
 			(this.app as unknown as { setting: { open(): void; openTabById(id: string): void } }).setting.open();
-			(this.app as unknown as { setting: { openTabById(id: string): void } }).setting.openTabById("mapdraw");
+			(this.app as unknown as { setting: { openTabById(id: string): void } }).setting.openTabById("mapmark");
 		};
 	}
 
 	private buildControls() {
 		// Top-left: our own zoom +/- (replaces Leaflet's default, which other
 		// plugins sometimes hide via global CSS).
-		const tl = this.overlayEl.createDiv({ cls: "mapdraw-control-tl" });
+		const tl = this.overlayEl.createDiv({ cls: "mapmark-control-tl" });
 		this.makeButton(tl, "plus", "Zoom in", () => this.map.zoomIn());
 		this.makeButton(tl, "minus", "Zoom out", () => this.map.zoomOut());
 		L.DomEvent.disableClickPropagation(tl);
 		L.DomEvent.disableScrollPropagation(tl);
 
-		const tr = this.overlayEl.createDiv({ cls: "mapdraw-control-tr" });
-		const dropdown = tr.createEl("select", { cls: "mapdraw-provider-select" });
+		const tr = this.overlayEl.createDiv({ cls: "mapmark-control-tr" });
+		const dropdown = tr.createEl("select", { cls: "mapmark-provider-select" });
 		for (const p of listProviders(this.settings)) {
 			const opt = dropdown.createEl("option", { value: p.id, text: p.name });
 			if (p.id === this.currentProviderId) opt.selected = true;
@@ -359,7 +370,7 @@ export class MapView {
 		};
 		L.DomEvent.disableClickPropagation(tr);
 
-		const br = this.overlayEl.createDiv({ cls: "mapdraw-control-br" });
+		const br = this.overlayEl.createDiv({ cls: "mapmark-control-br" });
 		this.makeButton(br, "locate-fixed", "Recenter", () => {
 			if (this.data.shapes.length > 0) this.fitToShapes();
 			else if (this.data.view?.center)
@@ -377,7 +388,7 @@ export class MapView {
 					overlay: this.currentOverlayId || undefined,
 				};
 				this.save();
-				new Notice("MapDraw: view saved");
+				new Notice("MapMark: view saved");
 			});
 			this.makeButton(br, "camera", "Snapshot map", () => { void this.takeSnapshot(); });
 			this.lockBtn = this.makeButton(br, this.data.locked ? "lock" : "unlock", "Lock map", () => {
@@ -385,15 +396,15 @@ export class MapView {
 				this.applyLock(next);
 				setIcon(this.lockBtn!, next ? "lock" : "unlock");
 				this.lockBtn!.title = next ? "Unlock map" : "Lock map";
-				this.lockBtn!.toggleClass("mapdraw-lock-on", next);
+				this.lockBtn!.toggleClass("mapmark-lock-on", next);
 				this.save();
 			});
-			if (this.data.locked) this.lockBtn.addClass("mapdraw-lock-on");
+			if (this.data.locked) this.lockBtn.addClass("mapmark-lock-on");
 		}
 		L.DomEvent.disableClickPropagation(br);
 
-		const bl = this.overlayEl.createDiv({ cls: "mapdraw-control-bl" });
-		this.coordEl = bl.createSpan({ cls: "mapdraw-coords", text: "" });
+		const bl = this.overlayEl.createDiv({ cls: "mapmark-control-bl" });
+		this.coordEl = bl.createSpan({ cls: "mapmark-coords", text: "" });
 		this.coordEl.title = "Click to copy";
 		this.coordEl.onclick = async () => {
 			if (!this.coordEl?.textContent) return;
@@ -411,7 +422,7 @@ export class MapView {
 	}
 
 	private makeButton(parent: HTMLElement, icon: string, title: string, onClick: () => void): HTMLButtonElement {
-		const btn = parent.createEl("button", { cls: "mapdraw-btn" });
+		const btn = parent.createEl("button", { cls: "mapmark-btn" });
 		btn.title = title;
 		btn.setAttr("aria-label", title);
 		setIcon(btn, icon);
@@ -459,11 +470,16 @@ export class MapView {
 	private bindShapeInteractions(shape: Shape, layer: L.Layer) {
 		layer.on("click", (e: L.LeafletMouseEvent) => {
 			L.DomEvent.stopPropagation(e);
-			if (shape.type === "marker" && shape.notePath) {
+			const canEdit = !this.readonly && !this.data.locked;
+			// In reading / locked mode, a linked marker opens the note. In edit
+			// mode, click *always* selects so the marker remains editable; the
+			// note is reachable via hover preview (page-preview core plugin) and
+			// the "Pick…" / "Clear" buttons in the style panel.
+			if (!canEdit && shape.type === "marker" && shape.notePath) {
 				this.app.workspace.openLinkText(shape.notePath, this.sourcePath);
 				return;
 			}
-			if (!this.readonly && !this.data.locked) this.selectShape(shape.id);
+			if (canEdit) this.selectShape(shape.id);
 		});
 		if (shape.type === "marker" && shape.notePath) {
 			const path = shape.notePath;
@@ -472,7 +488,7 @@ export class MapView {
 				el.addEventListener("mouseover", (ev) => {
 					this.app.workspace.trigger("hover-link", {
 						event: ev,
-						source: "mapdraw",
+						source: "mapmark",
 						hoverParent: this.container,
 						targetEl: el,
 						linktext: path,
@@ -532,6 +548,8 @@ export class MapView {
 				if (shape) (layer as L.Path).setStyle({ ...pathStyle(shape.style), dashArray: "" });
 			}
 		}
+		this.selectedDragCleanup?.();
+		this.selectedDragCleanup = null;
 		for (const h of this.editHandles) h.remove();
 		this.editHandles = [];
 		this.selectedId = null;
@@ -545,12 +563,19 @@ export class MapView {
 			case "text": {
 				const m = this.layers.get(shape.id) as L.Marker;
 				m.dragging?.enable();
-				m.on("dragend", () => {
+				const onDragEnd = () => {
 					const ll = m.getLatLng();
-					if (shape.type === "marker") shape.position = [ll.lat, ll.lng];
-					if (shape.type === "text") shape.position = [ll.lat, ll.lng];
+					shape.position = [ll.lat, ll.lng];
 					this.save();
-				});
+				};
+				m.on("dragend", onDragEnd);
+				// Stash so clearSelection can remove the listener and re-disable
+				// dragging — otherwise repeated select/deselect cycles stack
+				// dragend handlers and leave the marker draggable after deselect.
+				this.selectedDragCleanup = () => {
+					m.off("dragend", onDragEnd);
+					m.dragging?.disable();
+				};
 				break;
 			}
 			case "line":
@@ -603,7 +628,7 @@ export class MapView {
 	private makeVertexHandle(pt: LatLng, onMove: (newPt: LatLng) => void): L.Marker {
 		const handle = L.marker(pt as L.LatLngExpression, {
 			draggable: true,
-			icon: L.divIcon({ className: "mapdraw-vertex-handle", iconSize: [10, 10] }),
+			icon: L.divIcon({ className: "mapmark-vertex-handle", iconSize: [10, 10] }),
 		});
 		handle.on("drag", () => {
 			const ll = handle.getLatLng();
@@ -709,7 +734,7 @@ function makeTileLayer(resolved: ResolvedProvider, extra: L.TileLayerOptions = {
 export async function snapshotPathFor(
 	app: App,
 	sourcePath: string,
-	settings: MapDrawSettings
+	settings: MapMarkSettings
 ): Promise<string> {
 	const slash = sourcePath.lastIndexOf("/");
 	const sourceDir = slash > 0 ? sourcePath.slice(0, slash) : "";
@@ -727,9 +752,15 @@ export async function snapshotPathFor(
 	}
 
 	if (folder) {
-		const exists = await app.vault.adapter.exists(folder);
-		if (!exists) await app.vault.adapter.mkdir(folder);
-		return `${folder}/${snapshotName}`;
+		const normalized = normalizePath(folder);
+		if (!app.vault.getAbstractFileByPath(normalized)) {
+			try {
+				await app.vault.createFolder(normalized);
+			} catch {
+				// Folder created concurrently — createFolder throws on "already exists".
+			}
+		}
+		return `${normalized}/${snapshotName}`;
 	}
 	return snapshotName;
 }
@@ -737,7 +768,7 @@ export async function snapshotPathFor(
 async function resolveAttachmentFolder(app: App, sourcePath: string, fileName: string): Promise<string> {
 	// Probe Obsidian's attachment-folder resolver with a name that won't exist,
 	// then take the parent dir so we can write to a stable, deterministic path.
-	const probeName = `__mapdraw_probe_${Date.now()}_${Math.random().toString(36).slice(2)}__${fileName}`;
+	const probeName = `__mapmark_probe_${Date.now()}_${Math.random().toString(36).slice(2)}__${fileName}`;
 	const sample = await app.fileManager.getAvailablePathForAttachment(probeName, sourcePath);
 	const idx = sample.lastIndexOf("/");
 	return idx > 0 ? sample.slice(0, idx) : "";

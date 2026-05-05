@@ -5,6 +5,7 @@ import {
 	Plugin,
 	TAbstractFile,
 	TFile,
+	normalizePath,
 } from "obsidian";
 import * as L from "leaflet";
 import leafletCss from "leaflet/dist/leaflet.css";
@@ -14,15 +15,15 @@ import markerShadowUrl from "leaflet/dist/images/marker-shadow.png";
 import {
 	DEFAULT_SETTINGS,
 	type CodeBlockOptions,
-	type MapDrawSettings,
+	type MapMarkSettings,
 } from "./types";
-import { MapDrawSettingTab } from "./settings";
+import { MapMarkSettingTab } from "./settings";
 import { ensureMapDataStub, readMapData } from "./data/MapData";
 import { MapView } from "./view/MapView";
 import { SnapshotView } from "./view/SnapshotView";
 
-export default class MapDrawPlugin extends Plugin {
-	settings!: MapDrawSettings;
+export default class MapMarkPlugin extends Plugin {
+	settings!: MapMarkSettings;
 	private liveViews = new Map<string, Set<MapRenderChild>>();
 	private styleEl: HTMLStyleElement | null = null;
 
@@ -30,9 +31,9 @@ export default class MapDrawPlugin extends Plugin {
 		await this.loadSettings();
 		this.injectLeafletCss();
 		patchLeafletDefaultIcon();
-		this.addSettingTab(new MapDrawSettingTab(this.app, this));
+		this.addSettingTab(new MapMarkSettingTab(this.app, this));
 
-		this.registerMarkdownCodeBlockProcessor("mapdraw", (source, el, ctx) => {
+		this.registerMarkdownCodeBlockProcessor("mapmark", (source, el, ctx) => {
 			this.renderCodeBlock(source, el, ctx);
 		});
 
@@ -60,7 +61,7 @@ export default class MapDrawPlugin extends Plugin {
 
 	private injectLeafletCss() {
 		const style = document.createElement("style");
-		style.setAttribute("data-mapdraw", "leaflet");
+		style.setAttribute("data-mapmark", "leaflet");
 		style.textContent = leafletCss as unknown as string;
 		document.head.appendChild(style);
 		this.styleEl = style;
@@ -69,7 +70,7 @@ export default class MapDrawPlugin extends Plugin {
 	private renderCodeBlock(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		const opts = parseOptions(source);
 		if (!opts.source) {
-			el.createDiv({ cls: "mapdraw-error", text: "MapDraw: 'source' is required (path to sidecar JSON)." });
+			el.createDiv({ cls: "mapmark-error", text: "MapMark: 'source' is required (path to sidecar JSON)." });
 			return;
 		}
 		const child = new MapRenderChild(this, el, opts, ctx);
@@ -105,14 +106,14 @@ export default class MapDrawPlugin extends Plugin {
 }
 
 export class MapRenderChild extends MarkdownRenderChild {
-	plugin: MapDrawPlugin;
+	plugin: MapMarkPlugin;
 	options: CodeBlockOptions;
 	ctx: MarkdownPostProcessorContext;
 	private mapView: MapView | null = null;
 	private snapshotView: SnapshotView | null = null;
 	private lastSerialized = "";
 
-	constructor(plugin: MapDrawPlugin, container: HTMLElement, options: CodeBlockOptions, ctx: MarkdownPostProcessorContext) {
+	constructor(plugin: MapMarkPlugin, container: HTMLElement, options: CodeBlockOptions, ctx: MarkdownPostProcessorContext) {
 		super(container);
 		this.plugin = plugin;
 		this.options = options;
@@ -133,21 +134,30 @@ export class MapRenderChild extends MarkdownRenderChild {
 	}
 
 	async refresh(force = false) {
-		const data = await readMapData(this.plugin.app, this.options.source);
-		if (!data) {
+		const result = await readMapData(this.plugin.app, this.options.source);
+		if (result.kind === "missing") {
+			this.tearDownViews();
+			this.lastSerialized = "";
 			this.renderMissing();
 			return;
 		}
+		if (result.kind === "corrupt") {
+			// Critical: do NOT mount the editor. The autosave path would happily
+			// overwrite the user's broken-but-recoverable file with an empty map.
+			this.tearDownViews();
+			this.lastSerialized = "";
+			this.renderCorrupt(result.error);
+			return;
+		}
+		const data = result.data;
 		const serialized = JSON.stringify(data);
 		const modeMatches = data.snapshotPath ? !!this.snapshotView : !!this.mapView;
 		if (!force && modeMatches && serialized === this.lastSerialized) return;
 		this.lastSerialized = serialized;
 
-		this.mapView?.destroy();
-		this.mapView = null;
-		this.snapshotView?.destroy();
-		this.snapshotView = null;
+		this.tearDownViews();
 
+		const readonly = isReadingMode(this.containerEl);
 		if (data.snapshotPath) {
 			this.snapshotView = new SnapshotView({
 				app: this.plugin.app,
@@ -155,6 +165,7 @@ export class MapRenderChild extends MarkdownRenderChild {
 				data,
 				sourcePath: this.ctx.sourcePath,
 				options: this.options,
+				readonly,
 				onPersisted: (s) => { this.lastSerialized = s; },
 				onModeChange: () => { void this.refresh(); },
 			});
@@ -162,7 +173,6 @@ export class MapRenderChild extends MarkdownRenderChild {
 			return;
 		}
 
-		const readonly = isReadingMode(this.containerEl);
 		this.mapView = new MapView({
 			app: this.plugin.app,
 			container: this.containerEl,
@@ -177,21 +187,37 @@ export class MapRenderChild extends MarkdownRenderChild {
 		this.mapView.render();
 	}
 
+	private tearDownViews() {
+		this.mapView?.destroy();
+		this.mapView = null;
+		this.snapshotView?.destroy();
+		this.snapshotView = null;
+	}
+
 	private renderMissing() {
 		this.containerEl.empty();
-		const wrap = this.containerEl.createDiv({ cls: "mapdraw-missing" });
-		wrap.createEl("p", { text: `MapDraw: no map at "${this.options.source}".` });
+		const wrap = this.containerEl.createDiv({ cls: "mapmark-missing" });
+		wrap.createEl("p", { text: `MapMark: no map at "${this.options.source}".` });
 		const btn = wrap.createEl("button", { text: "Create map at this path" });
 		btn.onclick = async () => {
 			try {
 				await ensureMapDataStub(this.plugin.app, this.options.source);
-				new Notice("MapDraw: created map sidecar");
+				new Notice("MapMark: created map sidecar");
 				await this.refresh();
 			} catch (e) {
 				console.error(e);
-				new Notice("MapDraw: failed to create map (see console)");
+				new Notice("MapMark: failed to create map (see console)");
 			}
 		};
+	}
+
+	private renderCorrupt(error: string) {
+		this.containerEl.empty();
+		const wrap = this.containerEl.createDiv({ cls: "mapmark-error" });
+		wrap.createEl("p", {
+			text: `MapMark: cannot parse "${this.options.source}". The map is not loaded so editing it cannot overwrite the file. Fix the JSON in your editor and the map will reload automatically.`,
+		});
+		wrap.createEl("p", { text: `Parse error: ${error}` });
 	}
 }
 
@@ -208,7 +234,7 @@ function parseOptions(source: string): CodeBlockOptions {
 		if (!value) continue;
 		switch (key) {
 			case "source":
-				out.source = value;
+				out.source = normalizePath(value);
 				break;
 			case "provider":
 				out.provider = value;
@@ -216,12 +242,16 @@ function parseOptions(source: string): CodeBlockOptions {
 			case "overlay":
 				out.overlay = value;
 				break;
-			case "height":
-				out.height = Number(value);
+			case "height": {
+				const n = Number(value);
+				if (Number.isFinite(n) && n > 0) out.height = n;
 				break;
-			case "defaultZoom":
-				out.defaultZoom = Number(value);
+			}
+			case "defaultZoom": {
+				const n = Number(value);
+				if (Number.isFinite(n)) out.defaultZoom = n;
 				break;
+			}
 		}
 	}
 	return { source: out.source ?? "", provider: out.provider, overlay: out.overlay, height: out.height, defaultZoom: out.defaultZoom };
@@ -240,11 +270,9 @@ function patchLeafletDefaultIcon() {
 }
 
 function isReadingMode(el: HTMLElement): boolean {
-	let cur: HTMLElement | null = el;
-	while (cur) {
-		if (cur.classList?.contains("markdown-reading-view")) return true;
-		if (cur.classList?.contains("markdown-source-view")) return false;
-		cur = cur.parentElement;
-	}
-	return false;
+	// Source / Live Preview wins if it's the *closer* ancestor: Obsidian's
+	// reading view sometimes also has a .markdown-preview-view ancestor in
+	// embeds/exports, but in source mode it doesn't.
+	if (el.closest(".markdown-source-view")) return false;
+	return !!el.closest(".markdown-reading-view, .markdown-preview-view");
 }

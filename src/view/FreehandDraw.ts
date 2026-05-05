@@ -26,7 +26,7 @@ export class FreehandHandler {
 	enable() {
 		this.active = false;
 		this.origDragging = this.map.dragging.enabled();
-		this.map.getContainer().style.cursor = "crosshair";
+		this.map.getContainer().addClass("mapmark-crosshair");
 		this.map.on("mousedown", this.onDown, this);
 		this.map.on("mousemove", this.onMove, this);
 		this.map.on("mouseup", this.onUp, this);
@@ -34,7 +34,7 @@ export class FreehandHandler {
 	}
 
 	disable() {
-		this.map.getContainer().style.cursor = "";
+		this.map.getContainer().removeClass("mapmark-crosshair");
 		this.map.off("mousedown", this.onDown, this);
 		this.map.off("mousemove", this.onMove, this);
 		this.map.off("mouseup", this.onUp, this);

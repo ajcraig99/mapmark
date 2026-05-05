@@ -1,14 +1,14 @@
-.mapdraw-root {
+.mapmark-root {
 	margin: 0.5em 0;
 }
 
 /* Wrap holds the Leaflet container and our overlay layer as siblings. */
-.mapdraw-wrap {
+.mapmark-wrap {
 	position: relative;
 	width: 100%;
 }
 
-.mapdraw-map {
+.mapmark-map {
 	position: relative;
 	width: 100%;
 	border-radius: 6px;
@@ -19,19 +19,19 @@
 
 /* Overlay layer sits on top of the map; pointer-events pass through except
    on actual children (buttons, dropdowns, etc.). */
-.mapdraw-overlays {
+.mapmark-overlays {
 	position: absolute;
 	inset: 0;
 	z-index: 500;
 	pointer-events: none;
 }
 
-.mapdraw-overlays > * {
+.mapmark-overlays > * {
 	pointer-events: auto;
 }
 
-.mapdraw-error,
-.mapdraw-missing {
+.mapmark-error,
+.mapmark-missing {
 	padding: 12px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;
@@ -39,12 +39,12 @@
 	color: var(--text-normal);
 }
 
-.mapdraw-missing button {
+.mapmark-missing button {
 	margin-top: 8px;
 }
 
 /* Top-left: our own zoom +/- (Leaflet's default is disabled). */
-.mapdraw-control-tl {
+.mapmark-control-tl {
 	position: absolute;
 	top: 8px;
 	left: 8px;
@@ -59,7 +59,7 @@
 }
 
 /* Floating toolbar (drawing tools), stacked below the zoom cluster. */
-.mapdraw-toolbar {
+.mapmark-toolbar {
 	position: absolute;
 	top: 92px;
 	left: 8px;
@@ -73,7 +73,7 @@
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-.mapdraw-tool-btn {
+.mapmark-tool-btn {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -87,17 +87,17 @@
 	border-radius: 4px;
 }
 
-.mapdraw-tool-btn:hover {
+.mapmark-tool-btn:hover {
 	background: var(--background-modifier-hover);
 }
 
-.mapdraw-tool-btn.is-active {
+.mapmark-tool-btn.is-active {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
 }
 
 /* Generic round buttons used in corner control groups */
-.mapdraw-btn {
+.mapmark-btn {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -112,31 +112,31 @@
 	margin-left: 4px;
 }
 
-.mapdraw-btn:hover {
+.mapmark-btn:hover {
 	background: var(--background-modifier-hover);
 }
 
 /* Lock button when the map is locked — red tint so it's obvious at a glance. */
-.mapdraw-btn.mapdraw-lock-on {
+.mapmark-btn.mapmark-lock-on {
 	color: var(--text-on-accent, #ffffff);
 	background: var(--background-modifier-error);
 	border-color: var(--background-modifier-error);
 }
 
-.mapdraw-btn.mapdraw-lock-on:hover {
+.mapmark-btn.mapmark-lock-on:hover {
 	background: var(--background-modifier-error-hover, var(--background-modifier-error));
 	filter: brightness(1.1);
 }
 
 /* Top-right control cluster: provider switcher */
-.mapdraw-control-tr {
+.mapmark-control-tr {
 	position: absolute;
 	top: 8px;
 	right: 8px;
 	z-index: 500;
 }
 
-.mapdraw-provider-select {
+.mapmark-provider-select {
 	background: var(--background-primary);
 	color: var(--text-normal);
 	border: 1px solid var(--background-modifier-border);
@@ -146,7 +146,7 @@
 }
 
 /* Bottom-right control cluster: recenter, save view */
-.mapdraw-control-br {
+.mapmark-control-br {
 	position: absolute;
 	bottom: 8px;
 	right: 8px;
@@ -156,7 +156,7 @@
 }
 
 /* Bottom-left coordinate display */
-.mapdraw-control-bl {
+.mapmark-control-bl {
 	position: absolute;
 	bottom: 8px;
 	left: 8px;
@@ -171,12 +171,12 @@
 	color: var(--text-muted);
 }
 
-.mapdraw-coords:empty::before {
+.mapmark-coords:empty::before {
 	content: "—";
 }
 
 /* In-map banner for missing API key */
-.mapdraw-banner {
+.mapmark-banner {
 	position: absolute;
 	top: 8px;
 	left: 50%;
@@ -189,19 +189,19 @@
 	font-size: 12px;
 }
 
-.mapdraw-banner a {
+.mapmark-banner a {
 	color: inherit;
 	text-decoration: underline;
 	cursor: pointer;
 }
 
 /* Style panel for selected shape */
-.mapdraw-style-panel {
+.mapmark-style-panel {
 	position: absolute;
 	top: 8px;
 	right: 200px;
 	z-index: 500;
-	width: 240px;
+	width: 300px;
 	background: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;
@@ -209,58 +209,80 @@
 	font-size: 12px;
 	max-height: calc(100% - 16px);
 	overflow-y: auto;
+	overflow-x: hidden;
 }
 
-.mapdraw-style-header {
+.mapmark-style-header {
 	padding: 6px 10px;
 	font-weight: 600;
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.mapdraw-style-body {
-	padding: 6px 10px;
+.mapmark-style-body {
+	padding: 8px 10px;
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 8px;
 }
 
-.mapdraw-style-row {
+/* Stack label above control — fits long inputs and 2-button rows without
+   horizontal scroll, keeps each row legible at the panel's narrow width. */
+.mapmark-style-row {
 	display: flex;
-	align-items: center;
-	gap: 6px;
-}
-
-.mapdraw-style-label {
-	flex: 0 0 70px;
-	color: var(--text-muted);
-}
-
-.mapdraw-style-control {
-	flex: 1;
-	display: flex;
-	align-items: center;
-	gap: 4px;
-}
-
-.mapdraw-style-control input[type="text"],
-.mapdraw-style-control input[type="number"] {
-	flex: 1;
+	flex-direction: column;
+	gap: 3px;
 	min-width: 0;
 }
 
-.mapdraw-style-control input[type="range"] {
-	flex: 1;
+.mapmark-style-label {
+	color: var(--text-muted);
+	font-size: 11px;
+	letter-spacing: 0.02em;
 }
 
-.mapdraw-style-footer {
+.mapmark-style-control {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	width: 100%;
+}
+
+.mapmark-style-control input[type="text"],
+.mapmark-style-control input[type="number"] {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.mapmark-style-control input[type="range"] {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.mapmark-style-control button {
+	flex: 0 0 auto;
+	padding: 2px 8px;
+	font-size: 11px;
+}
+
+.mapmark-style-footer {
 	padding: 6px 10px;
 	border-top: 1px solid var(--background-modifier-border);
 	display: flex;
 	justify-content: flex-end;
 }
 
+/* Defensive: keep marker icons clickable even if a parent container or
+   theme sets pointer-events: none on rendered markdown content. Reading
+   mode is the usual culprit. */
+.mapmark-map .leaflet-interactive,
+.mapmark-map .leaflet-marker-icon {
+	pointer-events: auto;
+	cursor: pointer;
+}
+
 /* Vertex / handle markers */
-.mapdraw-vertex-handle {
+.mapmark-vertex-handle {
 	background: var(--interactive-accent);
 	border: 2px solid var(--text-on-accent);
 	border-radius: 50%;
@@ -271,12 +293,12 @@
 }
 
 /* Text overlay (label) */
-.mapdraw-text-divicon {
+.mapmark-text-divicon {
 	background: transparent;
 	border: none;
 }
 
-.mapdraw-text-label {
+.mapmark-text-label {
 	white-space: nowrap;
 	color: var(--text-normal);
 	font-weight: 500;
@@ -284,7 +306,7 @@
 	pointer-events: auto;
 }
 
-.mapdraw-link-display {
+.mapmark-link-display {
 	flex: 1;
 	min-width: 0;
 	overflow: hidden;
@@ -294,7 +316,7 @@
 }
 
 /* Tile loading indicator */
-.mapdraw-loading {
+.mapmark-loading {
 	position: absolute;
 	top: 8px;
 	left: 50%;
@@ -313,40 +335,49 @@
 	pointer-events: none;
 }
 
-.mapdraw-spinner {
+.mapmark-spinner {
 	width: 12px;
 	height: 12px;
 	border: 2px solid var(--background-modifier-border);
 	border-top-color: var(--interactive-accent);
 	border-radius: 50%;
-	animation: mapdraw-spin 0.8s linear infinite;
+	animation: mapmark-spin 0.8s linear infinite;
 }
 
-@keyframes mapdraw-spin {
+@keyframes mapmark-spin {
 	to { transform: rotate(360deg); }
 }
 
 /* When the wrap is locked, hide our overlay zoom cluster (toolbar visibility
    is handled in JS via DrawTools.setVisible). */
-.mapdraw-locked .mapdraw-control-tl {
+.mapmark-locked .mapmark-control-tl {
 	display: none;
 }
 
-.mapdraw-locked .leaflet-container {
+.mapmark-locked .leaflet-container {
 	cursor: default;
+}
+
+/* Toggled by drawing-tool activation; lives on the leaflet container. */
+.leaflet-container.mapmark-crosshair {
+	cursor: crosshair;
+}
+
+.mapmark-hidden {
+	display: none;
 }
 
 /* Hide Leaflet-internal chrome while capturing a snapshot so the resulting
    PNG shows only the map and annotations. Our overlays are siblings of the
    captured element, so they're naturally excluded. */
-.mapdraw-capturing .leaflet-control-attribution,
-.mapdraw-capturing .leaflet-control-zoom,
-.mapdraw-capturing .mapdraw-vertex-handle {
+.mapmark-capturing .leaflet-control-attribution,
+.mapmark-capturing .leaflet-control-zoom,
+.mapmark-capturing .mapmark-vertex-handle {
 	display: none !important;
 }
 
 /* Snapshot view (replaces the live map when snapshotPath is set) */
-.mapdraw-snapshot {
+.mapmark-snapshot {
 	position: relative;
 	width: 100%;
 	border-radius: 6px;
@@ -354,7 +385,7 @@
 	background: var(--background-secondary);
 }
 
-.mapdraw-snapshot-img {
+.mapmark-snapshot-img {
 	display: block;
 	width: 100%;
 	height: auto;
@@ -362,7 +393,7 @@
 	object-fit: contain;
 }
 
-.mapdraw-snapshot-bar {
+.mapmark-snapshot-bar {
 	position: absolute;
 	top: 8px;
 	right: 8px;
@@ -378,11 +409,11 @@
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-.mapdraw-snapshot-label {
+.mapmark-snapshot-label {
 	margin-right: 4px;
 }
 
-.mapdraw-custom-provider {
+.mapmark-custom-provider {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;
 	padding: 8px 12px;

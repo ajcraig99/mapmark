@@ -23,7 +23,7 @@ export class StylePanel {
 	show(shape: Shape) {
 		this.current = shape;
 		if (!this.el) {
-			this.el = this.opts.host.createDiv({ cls: "mapdraw-style-panel" });
+			this.el = this.opts.host.createDiv({ cls: "mapmark-style-panel" });
 			L.DomEvent.disableClickPropagation(this.el);
 			L.DomEvent.disableScrollPropagation(this.el);
 		}
@@ -45,10 +45,10 @@ export class StylePanel {
 		this.el.empty();
 		const shape = this.current;
 
-		const header = this.el.createDiv({ cls: "mapdraw-style-header" });
+		const header = this.el.createDiv({ cls: "mapmark-style-header" });
 		header.createSpan({ text: this.titleFor(shape) });
 
-		const body = this.el.createDiv({ cls: "mapdraw-style-body" });
+		const body = this.el.createDiv({ cls: "mapmark-style-body" });
 
 		// Label
 		this.row(body, "Label", (parent) => {
@@ -135,14 +135,19 @@ export class StylePanel {
 		// Marker note link
 		if (shape.type === "marker") {
 			this.row(body, "Note link", (parent) => {
-				const display = parent.createSpan({ cls: "mapdraw-link-display", text: shape.notePath ?? "(none)" });
+				const display = parent.createSpan({ cls: "mapmark-link-display", text: shape.notePath ?? "(none)" });
 				const pickBtn = parent.createEl("button", { text: "Pick…" });
 				pickBtn.onclick = () => {
 					new NoteLinkSuggester(this.opts.app, {
-						allowClear: true,
+						allowClear: false,
 						onPick: (file) => {
-							shape.notePath = file?.path;
-							display.textContent = shape.notePath ?? "(none)";
+							// Cancelling the suggester (Esc / click outside) returns
+							// null. Treat that as "no change" so users don't lose an
+							// existing link by mistake — the explicit Clear button
+							// below is the only path to remove the link.
+							if (!file) return;
+							shape.notePath = file.path;
+							display.textContent = file.path;
 							this.opts.onChange(shape);
 						},
 					}).open();
@@ -159,7 +164,7 @@ export class StylePanel {
 		}
 
 		// Delete
-		const footer = this.el.createDiv({ cls: "mapdraw-style-footer" });
+		const footer = this.el.createDiv({ cls: "mapmark-style-footer" });
 		const del = footer.createEl("button", { text: "Delete shape", cls: "mod-warning" });
 		del.onclick = () => this.opts.onDelete(shape);
 	}
@@ -182,9 +187,9 @@ export class StylePanel {
 	}
 
 	private row(parent: HTMLElement, label: string, build: (host: HTMLElement) => void) {
-		const row = parent.createDiv({ cls: "mapdraw-style-row" });
-		row.createSpan({ cls: "mapdraw-style-label", text: label });
-		const host = row.createDiv({ cls: "mapdraw-style-control" });
+		const row = parent.createDiv({ cls: "mapmark-style-row" });
+		row.createSpan({ cls: "mapmark-style-label", text: label });
+		const host = row.createDiv({ cls: "mapmark-style-control" });
 		build(host);
 	}
 

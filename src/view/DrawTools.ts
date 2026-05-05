@@ -5,7 +5,7 @@ import type {
 	FreehandShape,
 	LatLng,
 	LineShape,
-	MapDrawSettings,
+	MapMarkSettings,
 	MarkerShape,
 	PolygonShape,
 	RectangleShape,
@@ -31,7 +31,7 @@ export interface DrawToolsOptions {
 	host: HTMLElement;
 	sourcePath: string;
 	onShape: (shape: Shape) => void;
-	getSettings: () => MapDrawSettings;
+	getSettings: () => MapMarkSettings;
 }
 
 interface ToolDef {
@@ -63,11 +63,11 @@ export class DrawTools {
 	}
 
 	mount() {
-		this.toolbar = this.opts.host.createDiv({ cls: "mapdraw-toolbar" });
+		this.toolbar = this.opts.host.createDiv({ cls: "mapmark-toolbar" });
 		L.DomEvent.disableClickPropagation(this.toolbar);
 		L.DomEvent.disableScrollPropagation(this.toolbar);
 		for (const t of TOOLS) {
-			const btn = this.toolbar.createEl("button", { cls: "mapdraw-tool-btn" });
+			const btn = this.toolbar.createEl("button", { cls: "mapmark-tool-btn" });
 			btn.title = t.label;
 			btn.setAttr("aria-label", t.label);
 			setIcon(btn, t.icon);
@@ -84,7 +84,7 @@ export class DrawTools {
 
 	setVisible(visible: boolean) {
 		if (!this.toolbar) return;
-		this.toolbar.style.display = visible ? "" : "none";
+		this.toolbar.toggleClass("mapmark-hidden", !visible);
 		if (!visible) {
 			this.deactivate();
 			this.active = "select";
@@ -128,13 +128,13 @@ export class DrawTools {
 	private deactivate() {
 		for (const fn of this.cleanup) fn();
 		this.cleanup = [];
-		this.opts.map.getContainer().style.cursor = "";
+		this.opts.map.getContainer().removeClass("mapmark-crosshair");
 	}
 
 	private addCleanup(fn: () => void) { this.cleanup.push(fn); }
 
 	private activateMarker() {
-		this.opts.map.getContainer().style.cursor = "crosshair";
+		this.opts.map.getContainer().addClass("mapmark-crosshair");
 		const handler = (e: L.LeafletMouseEvent) => {
 			const shape: MarkerShape = {
 				id: newId("m"),
@@ -150,7 +150,7 @@ export class DrawTools {
 	}
 
 	private activateLineLike(kind: "line" | "polygon") {
-		this.opts.map.getContainer().style.cursor = "crosshair";
+		this.opts.map.getContainer().addClass("mapmark-crosshair");
 		const points: LatLng[] = [];
 		const preview = L.polyline([], { color: "#3388ff", weight: 3, dashArray: "4 4" }).addTo(this.opts.map);
 
@@ -200,7 +200,7 @@ export class DrawTools {
 	}
 
 	private activateRectangle() {
-		this.opts.map.getContainer().style.cursor = "crosshair";
+		this.opts.map.getContainer().addClass("mapmark-crosshair");
 		this.opts.map.dragging.disable();
 		let start: LatLng | null = null;
 		let preview: L.Rectangle | null = null;
@@ -237,7 +237,7 @@ export class DrawTools {
 	}
 
 	private activateCircle() {
-		this.opts.map.getContainer().style.cursor = "crosshair";
+		this.opts.map.getContainer().addClass("mapmark-crosshair");
 		this.opts.map.dragging.disable();
 		let center: L.LatLng | null = null;
 		let preview: L.Circle | null = null;
@@ -300,7 +300,7 @@ export class DrawTools {
 	}
 
 	private activateText() {
-		this.opts.map.getContainer().style.cursor = "crosshair";
+		this.opts.map.getContainer().addClass("mapmark-crosshair");
 		const handler = (e: L.LeafletMouseEvent) => {
 			const pos: LatLng = [e.latlng.lat, e.latlng.lng];
 			new TextInputModal(this.opts.app, "", (value) => {

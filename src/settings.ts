@@ -1,12 +1,12 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import type MapDrawPlugin from "./main";
+import type MapMarkPlugin from "./main";
 import { BUILTIN_PROVIDERS, makeCustomProvider } from "./tileProviders";
-import type { CustomProvider, MapDrawSettings } from "./types";
+import type { CustomProvider, MapMarkSettings } from "./types";
 
-export class MapDrawSettingTab extends PluginSettingTab {
-	plugin: MapDrawPlugin;
+export class MapMarkSettingTab extends PluginSettingTab {
+	plugin: MapMarkPlugin;
 
-	constructor(app: App, plugin: MapDrawPlugin) {
+	constructor(app: App, plugin: MapMarkPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -14,8 +14,6 @@ export class MapDrawSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-
-		containerEl.createEl("h2", { text: "MapDraw" });
 
 		new Setting(containerEl)
 			.setName("Default tile provider")
@@ -66,7 +64,7 @@ export class MapDrawSettingTab extends PluginSettingTab {
 				dd.addOption("attachment", "Use Obsidian attachment folder");
 				dd.setValue(this.plugin.settings.snapshotLocation);
 				dd.onChange(async (v) => {
-					this.plugin.settings.snapshotLocation = v as MapDrawSettings["snapshotLocation"];
+					this.plugin.settings.snapshotLocation = v as MapMarkSettings["snapshotLocation"];
 					await this.plugin.saveSettings();
 					this.display();
 				});
@@ -88,7 +86,7 @@ export class MapDrawSettingTab extends PluginSettingTab {
 
 		const linzSetting = new Setting(containerEl)
 			.setName("LINZ API key")
-			.setDesc("Required for linz-aerial and linz-topo.")
+			.setDesc("Required for the LINZ Aerial provider.")
 			.addText((t) => {
 				t.setValue(this.plugin.settings.linzApiKey);
 				t.setPlaceholder("c01...");
@@ -103,8 +101,8 @@ export class MapDrawSettingTab extends PluginSettingTab {
 		});
 		linkEl.setAttr("target", "_blank");
 
-		containerEl.createEl("h3", { text: "Custom providers" });
-		const list = containerEl.createDiv({ cls: "mapdraw-custom-providers" });
+		new Setting(containerEl).setName("Custom providers").setHeading();
+		const list = containerEl.createDiv({ cls: "mapmark-custom-providers" });
 		for (const provider of this.plugin.settings.customProviders) {
 			this.renderCustomProvider(list, provider);
 		}
@@ -119,7 +117,7 @@ export class MapDrawSettingTab extends PluginSettingTab {
 	}
 
 	private renderCustomProvider(parent: HTMLElement, provider: CustomProvider) {
-		const wrap = parent.createDiv({ cls: "mapdraw-custom-provider" });
+		const wrap = parent.createDiv({ cls: "mapmark-custom-provider" });
 		new Setting(wrap)
 			.setName("ID")
 			.addText((t) => {

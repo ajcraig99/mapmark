@@ -3,7 +3,7 @@ import process from "node:process";
 import builtins from "builtin-modules";
 
 const banner =
-`/* MapDraw plugin — bundled */`;
+`/* MapMark plugin — bundled */`;
 
 const prod = process.argv[2] === "production";
 
