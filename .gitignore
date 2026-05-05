@@ -18,7 +18,7 @@ Thumbs.db
 .idea/
 *.swp
 
-# AI assistant artefacts — never publish to GitHub
+# AI assistant artefacts
 CLAUDE.md
 AGENTS.md
 GEMINI.md
@@ -30,7 +30,7 @@ GEMINI.md
 .continue/
 .windsurfrules
 
-# Local-only checklists / scratch
+# Local-only checklists
 TODO_SUBMISSION.md
 TODO.local.md
 .scratch/
