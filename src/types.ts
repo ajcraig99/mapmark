@@ -130,6 +130,7 @@ export interface CustomProvider {
 
 export type SnapshotLocation = "next-to-map" | "custom" | "attachment";
 export type SidecarLocation = "next-to-note" | "custom" | "attachment";
+export type GeocoderProvider = "nominatim" | "mapbox";
 
 export interface MapMarkSettings {
 	defaultProvider: string;
@@ -141,6 +142,8 @@ export interface MapMarkSettings {
 	snapshotFolder: string;
 	sidecarLocation: SidecarLocation;
 	sidecarFolder: string;
+	geocoder: GeocoderProvider;
+	mapboxApiKey: string;
 }
 
 export const DEFAULT_SETTINGS: MapMarkSettings = {
@@ -153,6 +156,8 @@ export const DEFAULT_SETTINGS: MapMarkSettings = {
 	snapshotFolder: "",
 	sidecarLocation: "next-to-note",
 	sidecarFolder: "",
+	geocoder: "nominatim",
+	mapboxApiKey: "",
 };
 
 export function emptyMapData(): MapData {

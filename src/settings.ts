@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type MapMarkPlugin from "./main";
 import { BUILTIN_PROVIDERS, makeCustomProvider } from "./tileProviders";
-import type { CustomProvider, MapMarkSettings, SidecarLocation } from "./types";
+import type { CustomProvider, GeocoderProvider, MapMarkSettings, SidecarLocation } from "./types";
 
 export class MapMarkSettingTab extends PluginSettingTab {
 	plugin: MapMarkPlugin;
@@ -111,6 +111,43 @@ export class MapMarkSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 				});
+		}
+
+		new Setting(containerEl).setName("Address search").setHeading();
+
+		new Setting(containerEl)
+			.setName("Geocoder")
+			.setDesc(
+				"Service used by the address-search button. Nominatim is free with no key but has thin business-name coverage; Mapbox finds most businesses but requires an API key.",
+			)
+			.addDropdown((dd) => {
+				dd.addOption("nominatim", "Nominatim (OpenStreetMap, free)");
+				dd.addOption("mapbox", "Mapbox (requires API key)");
+				dd.setValue(this.plugin.settings.geocoder);
+				dd.onChange(async (v) => {
+					this.plugin.settings.geocoder = v as GeocoderProvider;
+					await this.plugin.saveSettings();
+					this.display();
+				});
+			});
+
+		if (this.plugin.settings.geocoder === "mapbox") {
+			const mapboxSetting = new Setting(containerEl)
+				.setName("Mapbox API key")
+				.setDesc("Used for forward geocoding only.")
+				.addText((t) => {
+					t.setValue(this.plugin.settings.mapboxApiKey);
+					t.setPlaceholder("pk.eyJ...");
+					t.onChange(async (v) => {
+						this.plugin.settings.mapboxApiKey = v.trim();
+						await this.plugin.saveSettings();
+					});
+				});
+			const link = mapboxSetting.descEl.createEl("a", {
+				text: " Get a free key at mapbox.com",
+				href: "https://account.mapbox.com/access-tokens/",
+			});
+			link.setAttr("target", "_blank");
 		}
 
 		const linzSetting = new Setting(containerEl)

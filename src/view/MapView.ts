@@ -14,6 +14,7 @@ import { DrawTools } from "./DrawTools";
 import { StylePanel } from "./StylePanel";
 import { createTextMarker, updateTextMarker } from "./TextOverlay";
 import { NoteLinkSuggester } from "./NoteLinkSuggester";
+import { AddressSearch } from "./AddressSearch";
 
 export interface MapViewOptions {
 	app: App;
@@ -52,6 +53,7 @@ export class MapView {
 
 	private toolbar: DrawTools | null = null;
 	private stylePanel: StylePanel | null = null;
+	private addressSearch: AddressSearch | null = null;
 	private banner: HTMLDivElement | null = null;
 	private coordEl: HTMLSpanElement | null = null;
 	private lockBtn: HTMLButtonElement | null = null;
@@ -253,6 +255,7 @@ export class MapView {
 		try { this.map.remove(); } catch { /* ignore */ }
 		this.toolbar?.destroy();
 		this.stylePanel?.destroy();
+		this.addressSearch?.destroy();
 		this.container.empty();
 	}
 
@@ -358,6 +361,13 @@ export class MapView {
 		this.makeButton(tl, "minus", "Zoom out", () => this.map.zoomOut());
 		L.DomEvent.disableClickPropagation(tl);
 		L.DomEvent.disableScrollPropagation(tl);
+
+		this.addressSearch = new AddressSearch({
+			map: this.map,
+			host: this.overlayEl,
+			getSettings: () => this.settings,
+		});
+		this.addressSearch.mount();
 
 		const tr = this.overlayEl.createDiv({ cls: "mapmark-control-tr" });
 		const dropdown = tr.createEl("select", { cls: "mapmark-provider-select" });

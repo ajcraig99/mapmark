@@ -58,6 +58,67 @@
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
+/* Address search — collapsed shows just the magnifying-glass button; clicking
+   reveals an input field that expands to the right. */
+.mapmark-search {
+	position: absolute;
+	top: 8px;
+	left: 52px;
+	display: flex;
+	align-items: center;
+	padding: 2px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.mapmark-search-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--text-normal);
+	cursor: pointer;
+	border-radius: 4px;
+	flex: 0 0 auto;
+}
+
+.mapmark-search-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+.mapmark-search-input {
+	width: 0;
+	padding: 0;
+	margin: 0;
+	border: none;
+	outline: none;
+	background: transparent;
+	color: var(--text-normal);
+	font-size: 12px;
+	transition: width 120ms ease, padding 120ms ease;
+}
+
+.mapmark-search.is-open .mapmark-search-input {
+	width: 220px;
+	padding: 4px 8px;
+}
+
+.mapmark-search.is-loading .mapmark-search-btn {
+	opacity: 0.5;
+}
+
+/* Hide the search button along with the rest of the edit-time chrome when
+   the map is locked. */
+.mapmark-locked .mapmark-search {
+	display: none;
+}
+
 /* Floating toolbar (drawing tools), stacked below the zoom cluster. */
 .mapmark-toolbar {
 	position: absolute;
