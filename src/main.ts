@@ -38,7 +38,13 @@ export default class MapMarkPlugin extends Plugin {
 			this.renderCodeBlock(source, el, ctx);
 		});
 
-		this.registerEvent(this.app.vault.on("modify", (file) => this.onVaultModify(file)));
+		// Listen for `modify` and `create`. The `create` listener fixes a sync
+		// footgun: when another device's sync drops the sidecar JSON in, any
+		// open MapMark view sitting on the "missing — create map?" UI will
+		// auto-flip to the real map without the user having to click the
+		// (destructive) create button.
+		this.registerEvent(this.app.vault.on("modify", (file) => this.onVaultChange(file)));
+		this.registerEvent(this.app.vault.on("create", (file) => this.onVaultChange(file)));
 	}
 
 	onunload() {
@@ -96,7 +102,7 @@ export default class MapMarkPlugin extends Plugin {
 		if (set.size === 0) this.liveViews.delete(path);
 	}
 
-	private onVaultModify(file: TAbstractFile) {
+	private onVaultChange(file: TAbstractFile) {
 		if (!(file instanceof TFile)) return;
 		const set = this.liveViews.get(file.path);
 		if (!set) return;
@@ -215,11 +221,39 @@ export class MapRenderChild extends MarkdownRenderChild {
 	private renderMissing() {
 		this.containerEl.empty();
 		const wrap = this.containerEl.createDiv({ cls: "mapmark-missing" });
-		wrap.createEl("p", { text: `MapMark: no map at "${this.options.source}".` });
+		const path = this.options.source;
+		// If the parent folder already exists, the file might be syncing in
+		// from another device. Clicking "Create" here would overwrite whatever
+		// sync delivers. Warn + confirm in that case. If the parent doesn't
+		// exist either, the user is creating a fresh map and there's nothing
+		// to clobber.
+		const slash = path.lastIndexOf("/");
+		const parentDir = slash > 0 ? path.slice(0, slash) : "";
+		const parentExists = parentDir
+			? !!this.plugin.app.vault.getAbstractFileByPath(parentDir)
+			: true;
+		const mightBeSyncing = parentExists;
+
+		wrap.createEl("p", { text: `MapMark: no map at "${path}".` });
+		if (mightBeSyncing) {
+			wrap.createEl("p", {
+				cls: "mapmark-missing-warn",
+				text:
+					"If this map should sync in from another device, wait — the view will refresh automatically when the file arrives. Creating a new map here will overwrite anything that arrives later.",
+			});
+		}
 		const btn = wrap.createEl("button", { text: "Create map at this path" });
 		btn.onclick = async () => {
+			if (mightBeSyncing) {
+				const ok = window.confirm(
+					`Create a new empty map at "${path}"?\n\n` +
+						"This file's parent folder already exists, so the file may be syncing in from another device. " +
+						"Creating a new map here will overwrite anything sync delivers later.",
+				);
+				if (!ok) return;
+			}
 			try {
-				await ensureMapDataStub(this.plugin.app, this.options.source);
+				await ensureMapDataStub(this.plugin.app, path);
 				new Notice("MapMark: created map sidecar");
 				await this.refresh();
 			} catch (e) {

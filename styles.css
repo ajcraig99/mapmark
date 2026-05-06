@@ -43,6 +43,12 @@
 	margin-top: 8px;
 }
 
+.mapmark-missing-warn {
+	margin-top: 4px;
+	font-size: 0.9em;
+	color: var(--text-muted);
+}
+
 /* Top-left: our own zoom +/- (Leaflet's default is disabled). */
 .mapmark-control-tl {
 	position: absolute;
