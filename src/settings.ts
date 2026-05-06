@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type MapMarkPlugin from "./main";
 import { BUILTIN_PROVIDERS, makeCustomProvider } from "./tileProviders";
-import type { CustomProvider, MapMarkSettings } from "./types";
+import type { CustomProvider, MapMarkSettings, SidecarLocation } from "./types";
 
 export class MapMarkSettingTab extends PluginSettingTab {
 	plugin: MapMarkPlugin;
@@ -54,6 +54,35 @@ export class MapMarkSettingTab extends PluginSettingTab {
 					}
 				});
 			});
+
+		new Setting(containerEl)
+			.setName("Sidecar location")
+			.setDesc("Where sidecar JSON files are stored when source: contains only a filename (no folder).")
+			.addDropdown((dd) => {
+				dd.addOption("next-to-note", "Beside the note");
+				dd.addOption("custom", "Custom folder");
+				dd.addOption("attachment", "Use Obsidian attachment folder");
+				dd.setValue(this.plugin.settings.sidecarLocation);
+				dd.onChange(async (v) => {
+					this.plugin.settings.sidecarLocation = v as SidecarLocation;
+					await this.plugin.saveSettings();
+					this.display();
+				});
+			});
+
+		if (this.plugin.settings.sidecarLocation === "custom") {
+			new Setting(containerEl)
+				.setName("Sidecar folder")
+				.setDesc("Vault-relative folder for sidecar JSON files (e.g. \"maps\"). Created on first save.")
+				.addText((t) => {
+					t.setValue(this.plugin.settings.sidecarFolder);
+					t.setPlaceholder("maps");
+					t.onChange(async (v) => {
+						this.plugin.settings.sidecarFolder = v.trim();
+						await this.plugin.saveSettings();
+					});
+				});
+		}
 
 		new Setting(containerEl)
 			.setName("Snapshot location")

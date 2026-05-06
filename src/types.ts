@@ -129,6 +129,7 @@ export interface CustomProvider {
 }
 
 export type SnapshotLocation = "next-to-map" | "custom" | "attachment";
+export type SidecarLocation = "next-to-note" | "custom" | "attachment";
 
 export interface MapMarkSettings {
 	defaultProvider: string;
@@ -138,6 +139,8 @@ export interface MapMarkSettings {
 	customProviders: CustomProvider[];
 	snapshotLocation: SnapshotLocation;
 	snapshotFolder: string;
+	sidecarLocation: SidecarLocation;
+	sidecarFolder: string;
 }
 
 export const DEFAULT_SETTINGS: MapMarkSettings = {
@@ -148,6 +151,8 @@ export const DEFAULT_SETTINGS: MapMarkSettings = {
 	customProviders: [],
 	snapshotLocation: "next-to-map",
 	snapshotFolder: "",
+	sidecarLocation: "next-to-note",
+	sidecarFolder: "",
 };
 
 export function emptyMapData(): MapData {

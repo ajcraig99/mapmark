@@ -1,4 +1,5 @@
 import {
+	App,
 	MarkdownPostProcessorContext,
 	MarkdownRenderChild,
 	Notice,
@@ -112,6 +113,7 @@ export class MapRenderChild extends MarkdownRenderChild {
 	private mapView: MapView | null = null;
 	private snapshotView: SnapshotView | null = null;
 	private lastSerialized = "";
+	private sourceResolved = false;
 
 	constructor(plugin: MapMarkPlugin, container: HTMLElement, options: CodeBlockOptions, ctx: MarkdownPostProcessorContext) {
 		super(container);
@@ -134,6 +136,22 @@ export class MapRenderChild extends MarkdownRenderChild {
 	}
 
 	async refresh(force = false) {
+		if (!this.sourceResolved) {
+			this.sourceResolved = true;
+			if (!this.options.source.includes("/")) {
+				const resolved = await resolveSidecarPath(
+					this.plugin.app,
+					this.ctx.sourcePath,
+					this.options.source,
+					this.plugin.settings,
+				);
+				if (resolved !== this.options.source) {
+					this.plugin.unregisterLiveView(this);
+					this.options.source = resolved;
+					this.plugin.registerLiveView(this);
+				}
+			}
+		}
 		const result = await readMapData(this.plugin.app, this.options.source);
 		if (result.kind === "missing") {
 			this.tearDownViews();
@@ -219,6 +237,32 @@ export class MapRenderChild extends MarkdownRenderChild {
 		});
 		wrap.createEl("p", { text: `Parse error: ${error}` });
 	}
+}
+
+async function resolveSidecarPath(
+	app: App,
+	notePath: string,
+	sourceName: string,
+	settings: import("./types").MapMarkSettings,
+): Promise<string> {
+	if (sourceName.includes("/")) return normalizePath(sourceName);
+
+	const slash = notePath.lastIndexOf("/");
+	const noteDir = slash > 0 ? notePath.slice(0, slash) : "";
+
+	let folder: string;
+	if (settings.sidecarLocation === "attachment") {
+		const probe = `__mapmark_probe_${Date.now()}__${sourceName}`;
+		const sample = await app.fileManager.getAvailablePathForAttachment(probe, notePath);
+		const idx = sample.lastIndexOf("/");
+		folder = idx > 0 ? sample.slice(0, idx) : "";
+	} else if (settings.sidecarLocation === "custom") {
+		folder = settings.sidecarFolder.trim().replace(/^\/+|\/+$/g, "");
+	} else {
+		folder = noteDir;
+	}
+
+	return folder ? normalizePath(`${folder}/${sourceName}`) : normalizePath(sourceName);
 }
 
 function parseOptions(source: string): CodeBlockOptions {
