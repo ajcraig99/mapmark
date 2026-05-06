@@ -8,7 +8,7 @@ import type {
 	Shape,
 } from "../types";
 import { toPng } from "html-to-image";
-import { listProviders, resolveProvider, type ResolvedProvider } from "../tileProviders";
+import { populateProviderSelect, resolveProvider, type ResolvedProvider } from "../tileProviders";
 import { writeMapData, debounceSave, type DebouncedSave } from "../data/MapData";
 import { DrawTools } from "./DrawTools";
 import { StylePanel } from "./StylePanel";
@@ -381,10 +381,7 @@ export class MapView {
 
 		const tr = this.overlayEl.createDiv({ cls: "mapmark-control-tr" });
 		const dropdown = tr.createEl("select", { cls: "mapmark-provider-select" });
-		for (const p of listProviders(this.settings)) {
-			const opt = dropdown.createEl("option", { value: p.id, text: p.name });
-			if (p.id === this.currentProviderId) opt.selected = true;
-		}
+		populateProviderSelect(dropdown, this.settings, this.currentProviderId);
 		dropdown.onchange = () => {
 			this.applyProvider(dropdown.value);
 		};

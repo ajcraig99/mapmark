@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type MapMarkPlugin from "./main";
-import { BUILTIN_PROVIDERS, makeCustomProvider } from "./tileProviders";
+import { makeCustomProvider, populateProviderSelect } from "./tileProviders";
 import type { CustomProvider, GeocoderProvider, MapMarkSettings, SidecarLocation } from "./types";
 
 export class MapMarkSettingTab extends PluginSettingTab {
@@ -19,9 +19,7 @@ export class MapMarkSettingTab extends PluginSettingTab {
 			.setName("Default tile provider")
 			.setDesc("Used when a code block does not specify a provider and the sidecar has no saved view.")
 			.addDropdown((dd) => {
-				for (const p of BUILTIN_PROVIDERS) dd.addOption(p.id, p.name);
-				for (const c of this.plugin.settings.customProviders) dd.addOption(c.id, c.name);
-				dd.setValue(this.plugin.settings.defaultProvider);
+				populateProviderSelect(dd.selectEl, this.plugin.settings, this.plugin.settings.defaultProvider);
 				dd.onChange(async (v) => {
 					this.plugin.settings.defaultProvider = v;
 					await this.plugin.saveSettings();

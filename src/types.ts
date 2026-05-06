@@ -102,6 +102,8 @@ export interface CodeBlockOptions {
 
 export type ProviderType = "xyz" | "wms";
 
+export type ProviderCategory = "map" | "satellite";
+
 export interface TileProvider {
 	id: string;
 	name: string;
@@ -114,6 +116,7 @@ export interface TileProvider {
 	type?: ProviderType;
 	layers?: string;
 	format?: string;
+	category?: ProviderCategory;
 }
 
 export interface CustomProvider {

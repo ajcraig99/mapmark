@@ -1,11 +1,14 @@
 import {
 	App,
+	Editor,
 	MarkdownPostProcessorContext,
 	MarkdownRenderChild,
+	MarkdownView,
 	Notice,
 	Plugin,
 	TAbstractFile,
 	TFile,
+	TFolder,
 	normalizePath,
 } from "obsidian";
 import * as L from "leaflet";
@@ -37,6 +40,24 @@ export default class MapMarkPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor("mapmark", (source, el, ctx) => {
 			this.renderCodeBlock(source, el, ctx);
 		});
+
+		this.addCommand({
+			id: "insert-mapmark-block",
+			name: "Insert MapMark block",
+			editorCallback: (editor, view) => this.insertMapBlock(editor, view.file),
+		});
+
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor, view) => {
+				if (!(view instanceof MarkdownView)) return;
+				menu.addItem((item) =>
+					item
+						.setTitle("Insert MapMark")
+						.setIcon("map")
+						.onClick(() => this.insertMapBlock(editor, view.file)),
+				);
+			}),
+		);
 
 		// Listen for `modify` and `create`. The `create` listener fixes a sync
 		// footgun: when another device's sync drops the sidecar JSON in, any
@@ -100,6 +121,16 @@ export default class MapMarkPlugin extends Plugin {
 		if (!set) return;
 		set.delete(child);
 		if (set.size === 0) this.liveViews.delete(path);
+	}
+
+	private insertMapBlock(editor: Editor, file: TFile | null) {
+		const base = file?.basename ?? "map";
+		const safe = base.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "map";
+		const block = "```mapmark\nsource: " + safe + ".map.json\n```\n";
+		const cursor = editor.getCursor();
+		const atLineStart = cursor.ch === 0;
+		const prefix = atLineStart ? "" : "\n";
+		editor.replaceRange(prefix + block, cursor);
 	}
 
 	private onVaultChange(file: TAbstractFile) {
@@ -222,36 +253,24 @@ export class MapRenderChild extends MarkdownRenderChild {
 		this.containerEl.empty();
 		const wrap = this.containerEl.createDiv({ cls: "mapmark-missing" });
 		const path = this.options.source;
-		// If the parent folder already exists, the file might be syncing in
-		// from another device. Clicking "Create" here would overwrite whatever
-		// sync delivers. Warn + confirm in that case. If the parent doesn't
-		// exist either, the user is creating a fresh map and there's nothing
-		// to clobber.
+		// Sync risk only matters when this folder is already known to hold
+		// map sidecars — that's the situation where another device might be
+		// dropping in a real file we'd clobber. A fresh map in a plain note
+		// folder has nothing to race against.
 		const slash = path.lastIndexOf("/");
 		const parentDir = slash > 0 ? path.slice(0, slash) : "";
-		const parentExists = parentDir
-			? !!this.plugin.app.vault.getAbstractFileByPath(parentDir)
-			: true;
-		const mightBeSyncing = parentExists;
+		const mightBeSyncing = hasMapSiblings(this.plugin.app, parentDir, path);
 
 		wrap.createEl("p", { text: `MapMark: no map at "${path}".` });
 		if (mightBeSyncing) {
 			wrap.createEl("p", {
 				cls: "mapmark-missing-warn",
 				text:
-					"If this map should sync in from another device, wait — the view will refresh automatically when the file arrives. Creating a new map here will overwrite anything that arrives later.",
+					"Other maps exist in this folder. If this one should sync in from another device, wait — the view will refresh when the file arrives. Creating now will overwrite anything that lands later.",
 			});
 		}
 		const btn = wrap.createEl("button", { text: "Create map at this path" });
 		btn.onclick = async () => {
-			if (mightBeSyncing) {
-				const ok = window.confirm(
-					`Create a new empty map at "${path}"?\n\n` +
-						"This file's parent folder already exists, so the file may be syncing in from another device. " +
-						"Creating a new map here will overwrite anything sync delivers later.",
-				);
-				if (!ok) return;
-			}
 			try {
 				await ensureMapDataStub(this.plugin.app, path);
 				new Notice("MapMark: created map sidecar");
@@ -271,6 +290,18 @@ export class MapRenderChild extends MarkdownRenderChild {
 		});
 		wrap.createEl("p", { text: `Parse error: ${error}` });
 	}
+}
+
+function hasMapSiblings(app: App, parentDir: string, selfPath: string): boolean {
+	const folder = parentDir
+		? app.vault.getAbstractFileByPath(parentDir)
+		: app.vault.getRoot();
+	if (!(folder instanceof TFolder)) return false;
+	for (const child of folder.children) {
+		if (child.path === selfPath) continue;
+		if (child instanceof TFile && child.path.endsWith(".map.json")) return true;
+	}
+	return false;
 }
 
 async function resolveSidecarPath(

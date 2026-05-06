@@ -215,7 +215,7 @@
 /* Bottom-right control cluster: recenter, save view */
 .mapmark-control-br {
 	position: absolute;
-	bottom: 8px;
+	bottom: 22px;
 	right: 8px;
 	z-index: 500;
 	display: flex;
@@ -432,6 +432,24 @@
 
 .mapmark-hidden {
 	display: none;
+}
+
+/* Constrain Leaflet's attribution control to a single line so it can't
+   wrap and cover the bottom-corner overlay buttons. Hovering or focusing
+   it expands to the full text — required by tile providers' attribution
+   policies but only when the user actually wants to read it. */
+.mapmark-map .leaflet-control-attribution {
+	max-width: 60%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mapmark-map .leaflet-control-attribution:hover,
+.mapmark-map .leaflet-control-attribution:focus-within {
+	max-width: 95%;
+	white-space: normal;
+	overflow: visible;
 }
 
 /* Hide Leaflet-internal chrome while capturing a snapshot so the resulting
