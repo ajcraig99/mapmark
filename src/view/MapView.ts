@@ -167,7 +167,17 @@ export class MapView {
 		// its transient narrow size to its real width, we want Leaflet to keep
 		// the saved-view centre at the visual centre. With `pan: false` it
 		// stays anchored to the old narrow pixel and the map looks shifted.
-		this.resizeObserver = new ResizeObserver(() => {
+		//
+		// Skip the 0×0 case: Obsidian sets `display: none` on inactive tab
+		// leaves, which fires ResizeObserver with width=height=0. Calling
+		// invalidateSize on that corrupts Leaflet's pane offset, and the
+		// follow-up call when the tab becomes visible again can't fully
+		// recover — the map ends up shifted up-and-left. We only care about
+		// reacting to the size *growing* anyway, so dropping the shrink-to-
+		// zero notification is harmless.
+		this.resizeObserver = new ResizeObserver((entries) => {
+			const r = entries[0]?.contentRect;
+			if (!r || r.width === 0 || r.height === 0) return;
 			this.map?.invalidateSize({ animate: false });
 		});
 		this.resizeObserver.observe(this.wrapEl);
