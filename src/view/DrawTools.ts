@@ -41,7 +41,7 @@ interface ToolDef {
 }
 
 const TOOLS: ToolDef[] = [
-	{ id: "select", icon: "mouse-pointer-2", label: "Select / pan" },
+	{ id: "select", icon: "hand", label: "Select / pan" },
 	{ id: "marker", icon: "map-pin", label: "Marker" },
 	{ id: "line", icon: "minus", label: "Line" },
 	{ id: "polygon", icon: "pentagon", label: "Polygon" },
